@@ -1,0 +1,11 @@
+vendor/
+writable/cache/*
+writable/logs/*
+writable/session/*
+writable/uploads/*
+writable/debugbar/*
+build/
+builds/
+tests/coverage*
+node_modules/
+.git/

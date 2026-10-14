@@ -101,4 +101,43 @@ final class KelasPageTest extends CIUnitTestCase
 
         $result->assertRedirectTo('/admin/kelas');
     }
+
+    public function testGuestRedirectedToLoginWhenUpdatingKelas(): void
+    {
+        $result = $this->postWithCsrf('/admin/kelas/update', [
+            'kd_kelas' => 1,
+            'nm_kelas' => '7Z',
+        ]);
+
+        $result->assertRedirectTo('/login');
+    }
+
+    public function testEmptyKelasNameDoesNotUpdate(): void
+    {
+        $result = $this->withSession(['username' => 'admin'])->postWithCsrf('/admin/kelas/update', [
+            'kd_kelas' => 1,
+            'nm_kelas' => '',
+        ]);
+
+        $result->assertRedirect();
+    }
+
+    public function testLoggedInAdminCanUpdateKelas(): void
+    {
+        $result = $this->withSession(['username' => 'admin'])->postWithCsrf('/admin/kelas/update', [
+            'kd_kelas' => 1,
+            'nm_kelas' => '7Z',
+        ]);
+
+        $result->assertRedirectTo('/admin/kelas');
+    }
+
+    public function testKelasPageShowsEditButton(): void
+    {
+        $result = $this->withSession(['username' => 'admin'])->get('/admin/kelas');
+
+        $result->assertOK();
+        $result->assertSee('Ubah Kelas');
+        $result->assertSee('Simpan');
+    }
 }

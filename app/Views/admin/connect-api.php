@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koneksi API Sekolah</title>
+    <link rel="icon" href="<?= esc(!empty($school["favicon"] ?? "") ? "/uploads/sekolah/" . $school["favicon"] : "/logo.png") ?>">
     <link rel="stylesheet" href="/assets/css/admin.css?v=<?= (int) @filemtime(FCPATH . 'assets/css/admin.css') ?>">
     <script src="/assets/js/admin.js?v=<?= (int) @filemtime(FCPATH . 'assets/js/admin.js') ?>" defer></script>
 </head>
@@ -132,6 +133,17 @@
                                 </tbody>
                             </table>
                         </div>
+                        <?php if (($totalHalaman ?? 1) > 1): ?>
+                            <div class="pagination">
+                                <?php if (($halaman ?? 1) > 1): ?>
+                                    <a class="btn btn-outline" href="/admin/connect-api?halaman=<?= esc(($halaman ?? 1) - 1) ?>">Sebelumnya</a>
+                                <?php endif; ?>
+                                <span class="pagination-info">Halaman <?= esc($halaman ?? 1) ?> dari <?= esc($totalHalaman ?? 1) ?></span>
+                                <?php if (($halaman ?? 1) < ($totalHalaman ?? 1)): ?>
+                                    <a class="btn btn-outline" href="/admin/connect-api?halaman=<?= esc(($halaman ?? 1) + 1) ?>">Berikutnya</a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </section>
             </main>

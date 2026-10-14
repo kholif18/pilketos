@@ -231,15 +231,15 @@ class Admin extends BaseController
 
             if (! $tableExists) {
                 if (str_contains($driver, 'sqlite')) {
-                    $db->query("CREATE TABLE IF NOT EXISTS tb_datapilketos (id INTEGER PRIMARY KEY, tapel TEXT NOT NULL DEFAULT '', tgl TEXT NOT NULL DEFAULT '')");
+                    $db->query("CREATE TABLE IF NOT EXISTS tb_datapilketos (id INTEGER PRIMARY KEY, tapel TEXT NOT NULL DEFAULT '', tgl TEXT)");
                 } else {
-                    $db->query("CREATE TABLE IF NOT EXISTS tb_datapilketos (id INT NOT NULL DEFAULT 1 PRIMARY KEY, tapel VARCHAR(10) NOT NULL DEFAULT '', tgl DATE NOT NULL)");
+                    $db->query("CREATE TABLE IF NOT EXISTS tb_datapilketos (id INT NOT NULL DEFAULT 1 PRIMARY KEY, tapel VARCHAR(10) NOT NULL DEFAULT '', tgl DATE NULL)");
                 }
             }
 
             $row = $db->query("SELECT 1 FROM tb_datapilketos WHERE id = 1 LIMIT 1")->getRowArray();
             if (empty($row)) {
-                $db->query("INSERT INTO tb_datapilketos (id, tapel, tgl) VALUES (1, '', '0000-00-00')");
+                $db->query("INSERT INTO tb_datapilketos (id, tapel, tgl) VALUES (1, '', NULL)");
             }
         } catch (\Throwable $e) {
             // Ignore silently so the dashboard can still render a clean empty state when the schema is missing.
@@ -291,7 +291,7 @@ class Admin extends BaseController
         $this->ensureDatapilketos($db);
 
         try {
-            $db->query("UPDATE tb_datapilketos SET tapel = '', tgl = '' WHERE id = 1");
+            $db->query("UPDATE tb_datapilketos SET tapel = '', tgl = NULL WHERE id = 1");
 
             return redirect()->to("/admin")->with("success", "Periode pemilihan berhasil dikosongkan.");
         } catch (\Throwable $e) {
@@ -544,6 +544,33 @@ class Admin extends BaseController
             return redirect()->to("/admin/kelas")->with("success", "Data kelas berhasil dihapus.");
         } catch (\Throwable $e) {
             return redirect()->to("/admin/kelas")->with("error", "Gagal menghapus data kelas.");
+        }
+    }
+
+    public function updateKelas()
+    {
+        if (! session()->get("username")) {
+            return redirect()->to("/login");
+        }
+
+        $kdKelas = (int) $this->request->getPost("kd_kelas");
+        $namaKelas = trim((string) $this->request->getPost("nm_kelas"));
+
+        if ($kdKelas <= 0) {
+            return redirect()->back()->with("error", "Kode kelas wajib diisi.");
+        }
+
+        if ($namaKelas === "") {
+            return redirect()->back()->with("error", "Nama kelas wajib diisi.");
+        }
+
+        $db = db_connect();
+
+        try {
+            $db->query("UPDATE tb_kelas SET nm_kelas = ? WHERE kd_kelas = ?", [$namaKelas, $kdKelas]);
+            return redirect()->to("/admin/kelas")->with("success", "Data kelas berhasil diperbarui.");
+        } catch (\Throwable $e) {
+            return redirect()->back()->with("error", "Gagal memperbarui data kelas.");
         }
     }
 
@@ -1527,8 +1554,24 @@ class Admin extends BaseController
         $db = db_connect();
         $this->ensureLogSyncTable($db);
 
+        $perHalaman = 10;
+        $halaman = max(1, (int) $this->request->getGet("halaman"));
+        $totalRiwayat = 0;
+
         try {
-            $riwayat = $db->query("SELECT waktu, sumber, jumlah, gagal, pesan, oleh FROM tb_log_sync ORDER BY id DESC LIMIT 10")->getResultArray();
+            $totalRiwayat = (int) $db->query("SELECT COUNT(*) AS total FROM tb_log_sync")->getRow()->total;
+        } catch (\Throwable $e) {
+            $totalRiwayat = 0;
+        }
+
+        $totalHalaman = max(1, (int) ceil($totalRiwayat / $perHalaman));
+        if ($halaman > $totalHalaman) {
+            $halaman = $totalHalaman;
+        }
+        $offset = ($halaman - 1) * $perHalaman;
+
+        try {
+            $riwayat = $db->query("SELECT waktu, sumber, jumlah, gagal, pesan, oleh FROM tb_log_sync ORDER BY id DESC LIMIT {$perHalaman} OFFSET {$offset}")->getResultArray();
         } catch (\Throwable $e) {
             $riwayat = [];
         }
@@ -1538,6 +1581,9 @@ class Admin extends BaseController
             "school" => $this->getSchoolData(),
             "config" => $config,
             "riwayat" => $riwayat,
+            "halaman" => $halaman,
+            "totalHalaman" => $totalHalaman,
+            "totalRiwayat" => $totalRiwayat,
             "success" => session()->getFlashdata("success"),
             "error" => session()->getFlashdata("error"),
         ]);
@@ -1693,11 +1739,20 @@ class Admin extends BaseController
             $db->query("DELETE FROM tb_pilihan");
 
             try {
-                $db->query("UPDATE tb_datapilketos SET tapel = '', tgl = '' WHERE id = 1");
+                $db->query("UPDATE tb_datapilketos SET tapel = '', tgl = NULL WHERE id = 1");
             } catch (\Throwable $ignored) {
             }
 
             $db->transCommit();
+
+            $dirCalon = FCPATH . "uploads" . DIRECTORY_SEPARATOR . "calon";
+            if (is_dir($dirCalon)) {
+                foreach (glob($dirCalon . DIRECTORY_SEPARATOR . "*") ?: [] as $berkas) {
+                    if (is_file($berkas) && basename($berkas) !== "default.jpg") {
+                        @unlink($berkas);
+                    }
+                }
+            }
 
             return redirect()->to("/admin")->with("success", "Semua data pemilihan berhasil direset.");
         } catch (\Throwable $e) {
@@ -1720,11 +1775,13 @@ class Admin extends BaseController
 
             if (! $tableExists) {
                 if (str_contains($driver, 'sqlite')) {
-                    $db->query('CREATE TABLE IF NOT EXISTS tb_admin (username TEXT PRIMARY KEY, password TEXT NOT NULL)');
+                    $db->query('CREATE TABLE IF NOT EXISTS tb_admin (username TEXT PRIMARY KEY, password TEXT NOT NULL, avatar TEXT)');
                 } else {
-                    $db->query('CREATE TABLE IF NOT EXISTS tb_admin (username VARCHAR(50) NOT NULL PRIMARY KEY, password VARCHAR(32) NOT NULL)');
+                    $db->query('CREATE TABLE IF NOT EXISTS tb_admin (username VARCHAR(50) NOT NULL PRIMARY KEY, password VARCHAR(32) NOT NULL, avatar VARCHAR(64) NULL)');
                 }
             }
+
+            $this->ensureColumn($db, 'tb_admin', 'avatar', $driver, 'TEXT', 'VARCHAR(64) NULL');
 
             $row = $db->query('SELECT username FROM tb_admin WHERE username = ? LIMIT 1', ['admin'])->getRowArray();
             if (empty($row)) {
@@ -1738,18 +1795,186 @@ class Admin extends BaseController
         }
     }
 
-    public function password()
+    private function ensureColumn($db, string $table, string $column, string $driver, string $sqliteDef, string $mysqlDef): void
+    {
+        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $table) || ! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $column)) {
+            return;
+        }
+
+        try {
+            $exists = str_contains($driver, 'sqlite')
+                ? ! empty($db->query("SELECT name FROM pragma_table_info('{$table}') WHERE name = ?", [$column])->getRowArray())
+                : ! empty($db->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ? LIMIT 1", [$table, $column])->getRowArray());
+
+            if (! $exists) {
+                $db->query("ALTER TABLE {$table} ADD COLUMN {$column} " . (str_contains($driver, 'sqlite') ? $sqliteDef : $mysqlDef));
+            }
+        } catch (\Throwable $e) {
+            // Ignore silently; callers fall back to error notices.
+        }
+    }
+
+    private function uploadGambar(string $field, string $subdir, string $namaDasar): ?string
+    {
+        $file = $this->request->getFile($field);
+
+        if (! $file || ! $file->isValid() || $file->hasMoved()) {
+            return null;
+        }
+
+        $boleh = ["image/jpeg" => "jpg", "image/png" => "png", "image/gif" => "gif"];
+        $mime = (string) $file->getMimeType();
+
+        if (! isset($boleh[$mime])) {
+            throw new \RuntimeException("Format berkas harus JPG, PNG, atau GIF.");
+        }
+
+        if ($file->getSize() > 1024 * 1024) {
+            throw new \RuntimeException("Ukuran berkas maksimal 1 MB.");
+        }
+
+        $dir = FCPATH . "uploads" . DIRECTORY_SEPARATOR . $subdir;
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $namaFile = $namaDasar . "." . $boleh[$mime];
+
+        try {
+            $file->move($dir, $namaFile, true);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("Gagal mengunggah berkas.");
+        }
+
+        return $namaFile;
+    }
+
+    private function hapusBerkas(string $subdir, $nama): void
+    {
+        $nama = (string) ($nama ?? "");
+        if ($nama === "" || $nama === "default.jpg" || ! preg_match('/^[A-Za-z0-9._-]+$/', $nama)) {
+            return;
+        }
+
+        $path = FCPATH . "uploads" . DIRECTORY_SEPARATOR . $subdir . DIRECTORY_SEPARATOR . basename($nama);
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
+
+    private function namaBerkasAman(string $s, string $default = "file"): string
+    {
+        $s = strtolower(preg_replace('/[^A-Za-z0-9]+/', '-', trim($s)));
+        $s = trim($s, '-');
+        return $s === '' ? $default : substr($s, 0, 40);
+    }
+
+    public function pengaturan()
     {
         if (! session()->get("username")) {
             return redirect()->to("/login");
         }
 
-        return view("admin/password", [
+        $db = db_connect();
+        $this->ensureAdminTable($db);
+
+        $avatar = "";
+        try {
+            $baris = $db->query("SELECT avatar FROM tb_admin WHERE username = ? LIMIT 1", [session()->get("username")])->getRowArray();
+            $avatar = is_array($baris) ? (string) ($baris["avatar"] ?? "") : "";
+        } catch (\Throwable $e) {
+        }
+
+        return view("admin/pengaturan", [
             "username" => session()->get("username"),
             "school" => $this->getSchoolData(),
+            "avatar" => $avatar,
             "success" => session()->getFlashdata("success"),
             "error" => session()->getFlashdata("error"),
         ]);
+    }
+
+    public function saveAvatar()
+    {
+        if (! session()->get("username")) {
+            return redirect()->to("/login");
+        }
+
+        $db = db_connect();
+        $this->ensureAdminTable($db);
+
+        try {
+            $username = session()->get("username");
+            $baru = $this->uploadGambar("avatar", "avatar", "avatar-" . $this->namaBerkasAman((string) $username));
+
+            if ($baru === null) {
+                return redirect()->back()->with("error", "Pilih berkas foto terlebih dahulu.");
+            }
+
+            $lama = "";
+            try {
+                $baris = $db->query("SELECT avatar FROM tb_admin WHERE username = ? LIMIT 1", [$username])->getRowArray();
+                $lama = is_array($baris) ? (string) ($baris["avatar"] ?? "") : "";
+            } catch (\Throwable $e) {
+            }
+
+            $db->query("UPDATE tb_admin SET avatar = ? WHERE username = ?", [$baru, $username]);
+            $this->hapusBerkas("avatar", $lama);
+            session()->set("avatar", $baru);
+
+            return redirect()->to("/admin/pengaturan")->with("success", "Avatar berhasil diperbarui.");
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->with("error", $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect()->back()->with("error", "Gagal menyimpan avatar.");
+        }
+    }
+
+    public function saveLogo()
+    {
+        if (! session()->get("username")) {
+            return redirect()->to("/login");
+        }
+
+        $db = db_connect();
+        $driver = strtolower((string) ($db->DBDriver ?? ''));
+        $this->ensureColumn($db, 'tb_identitassekolah', 'logo', $driver, 'TEXT', 'VARCHAR(64) NULL');
+        $this->ensureColumn($db, 'tb_identitassekolah', 'favicon', $driver, 'TEXT', 'VARCHAR(64) NULL');
+
+        try {
+            $logoBaru = $this->uploadGambar("logo", "sekolah", "logo");
+            $ikonBaru = $this->uploadGambar("favicon", "sekolah", "favicon");
+
+            if ($logoBaru === null && $ikonBaru === null) {
+                return redirect()->back()->with("error", "Pilih berkas logo atau ikon terlebih dahulu.");
+            }
+
+            $defaults = $this->defaultSchool();
+            $baris = $db->query("SELECT * FROM tb_identitassekolah LIMIT 1")->getRowArray();
+            if (empty($baris)) {
+                $db->query(
+                    "INSERT INTO tb_identitassekolah (npsn, nm_sekolah, jln, desa, kec, kab, kpl_sekolah, nip) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    [$defaults["npsn"], $defaults["nm_sekolah"], $defaults["jln"], $defaults["desa"], $defaults["kec"], $defaults["kab"], $defaults["kpl_sekolah"], $defaults["nip"]]
+                );
+                $baris = [];
+            }
+
+            if ($logoBaru !== null) {
+                $this->hapusBerkas("sekolah", $baris["logo"] ?? "");
+                $db->query("UPDATE tb_identitassekolah SET logo = ?", [$logoBaru]);
+            }
+
+            if ($ikonBaru !== null) {
+                $this->hapusBerkas("sekolah", $baris["favicon"] ?? "");
+                $db->query("UPDATE tb_identitassekolah SET favicon = ?", [$ikonBaru]);
+            }
+
+            return redirect()->to("/admin/pengaturan")->with("success", "Logo berhasil diperbarui.");
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->with("error", $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect()->back()->with("error", "Gagal menyimpan logo.");
+        }
     }
 
     public function savePassword()
@@ -1793,7 +2018,7 @@ class Admin extends BaseController
                 [md5($baru), $username]
             );
 
-            return redirect()->to("/admin/password")->with("success", "Password berhasil diperbarui.");
+            return redirect()->to("/admin/pengaturan")->with("success", "Password berhasil diperbarui.");
         } catch (\Throwable $e) {
             return redirect()->back()->with("error", "Gagal memperbarui password. Silakan coba lagi.");
         }
@@ -1802,6 +2027,7 @@ class Admin extends BaseController
     public function logout()
     {
         session()->remove("username");
+        session()->remove("avatar");
         return redirect()->to("/login");
     }
 }

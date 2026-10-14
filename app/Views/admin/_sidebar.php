@@ -13,13 +13,31 @@ $tautan = [
     "laporan"    => ["/admin/laporan", "Laporan", '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"/><path d="M14 2v6h6M9 13h6M9 17h6"/>'],
     "identitas"  => ["/admin/identitas", "Identitas", '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'],
     "connect-api" => ["/admin/connect-api", "Koneksi API", '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'],
-    "password" => ["/admin/password", "Ganti Password", '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'],
+    "pengaturan" => ["/admin/pengaturan", "Pengaturan", '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>'],
 ];
+?>
+<?php
+$logoBerkas = is_array($school ?? null) ? (string) ($school["logo"] ?? "") : "";
+if (! preg_match('/^[A-Za-z0-9._-]+$/', $logoBerkas)) {
+    $logoBerkas = "";
+}
+$logoAda = $logoBerkas !== "" && is_file(FCPATH . "uploads/sekolah/" . $logoBerkas);
+$avatarSesi = (string) (session()->get("avatar") ?? "");
+if (! preg_match('/^[A-Za-z0-9._-]+$/', $avatarSesi)) {
+    $avatarSesi = "";
+}
+$avatarAda = $avatarSesi !== "" && is_file(FCPATH . "uploads/avatar/" . $avatarSesi);
 ?>
 <aside class="dash-sidebar" id="sidebar" aria-label="Navigasi admin">
     <div class="dash-brand">
         <span class="dash-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            <?php if ($logoAda): ?>
+                <img class="dash-brand-logo" src="/uploads/sekolah/<?= esc($logoBerkas) ?>" alt="Logo <?= esc($namaSekolah) ?>">
+            <?php elseif (is_file(FCPATH . "logo.png")): ?>
+                <img class="dash-brand-logo" src="/logo.png" alt="Logo E-Voting OSIS">
+            <?php else: ?>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            <?php endif; ?>
         </span>
         <span class="dash-brand-text">
             <strong>E-Voting OSIS</strong>
@@ -40,7 +58,7 @@ $tautan = [
     <div class="dash-side-foot">
         <p class="dash-motto">Suara Anda<br>Masa Depan Sekolah</p>
         <div class="dash-user-mini">
-            <span class="dash-avatar" aria-hidden="true"><?= esc($inisialAdmin) ?></span>
+            <span class="dash-avatar" aria-hidden="true"><?php if ($avatarAda): ?><img src="/uploads/avatar/<?= esc($avatarSesi) ?>" alt="Avatar <?= esc($namaPengguna) ?>"><?php else: ?><?= esc($inisialAdmin) ?><?php endif; ?></span>
             <span class="dash-user-mini-text">
                 <strong><?= esc($namaPengguna) ?></strong>
                 <small>Administrator</small>

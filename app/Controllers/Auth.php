@@ -7,8 +7,21 @@ class Auth extends BaseController
     private function ensureLegacyTables($db): void
     {
         if (! $this->tableExists($db, 'tb_admin')) {
-            $db->query('CREATE TABLE IF NOT EXISTS tb_admin (username TEXT PRIMARY KEY, password TEXT NOT NULL)');
+            $db->query('CREATE TABLE IF NOT EXISTS tb_admin (username TEXT PRIMARY KEY, password TEXT NOT NULL, avatar TEXT)');
             $this->upsertAdminAccount('admin', 'admin', $db);
+        } else {
+            $driver = strtolower((string) ($db->DBDriver ?? ''));
+
+            try {
+                $kolomAda = str_contains($driver, 'sqlite')
+                    ? ! empty($db->query("SELECT name FROM pragma_table_info('tb_admin') WHERE name = ?", ['avatar'])->getRowArray())
+                    : ! empty($db->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'tb_admin' AND column_name = 'avatar' LIMIT 1", [])->getRowArray());
+
+                if (! $kolomAda) {
+                    $db->query(str_contains($driver, 'sqlite') ? 'ALTER TABLE tb_admin ADD COLUMN avatar TEXT' : 'ALTER TABLE tb_admin ADD COLUMN avatar VARCHAR(64) NULL');
+                }
+            } catch (\Throwable $e) {
+            }
         }
 
         if (! $this->tableExists($db, 'tb_siswa')) {
@@ -97,7 +110,7 @@ class Auth extends BaseController
 
         // Admin dicek dulu agar username admin tidak pernah jatuh ke sesi pemilih.
         $admin = $db->query(
-            'SELECT username FROM tb_admin WHERE username = ? AND password = ? LIMIT 1',
+            'SELECT username, avatar FROM tb_admin WHERE username = ? AND password = ? LIMIT 1',
             [$username, md5($password)]
         )->getRowArray();
 
@@ -109,6 +122,7 @@ class Auth extends BaseController
         if ($admin) {
             session()->regenerate();
             session()->set('username', $admin['username']);
+            session()->set('avatar', (string) ($admin['avatar'] ?? ''));
             return redirect()->to('/admin');
         }
 

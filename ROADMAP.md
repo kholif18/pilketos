@@ -23,13 +23,14 @@ Membangun aplikasi Pilketos versi CI4 yang siap digunakan untuk keperluan admin,
 - tombol test koneksi dan sync API terpisah
 - halaman hasil voting + tombol fullscreen
 - template sidebar dan header global untuk semua halaman admin
+- pencarian global topbar (dropdown menu + kandidat, navigasi keyboard)
 - form pengaturan tapel dan tanggal pemilihan di dashboard
 - validasi NIS 4 digit di data siswa + ganti password admin
 
 ### ⏳ Belum selesai
-- ✅ upload foto calon end-to-end (validasi, `public/uploads/calon`, thumbnail tabel)
+- ✅ upload foto calon end-to-end (validasi, `public/uploads/calon`, thumbnail tabel + dashboard, hapus file saat ganti/hapus/reset)
 - ✅ sync guru sisi pilketos (kelas "Guru" otomatis, password default NIP) — teruji live
-- ✅ log audit sync (`tb_log_sync` + riwayat 10 terakhir di connect-api)
+- ✅ log audit sync (`tb_log_sync` + riwayat paginasi di connect-api)
 - ✅ integrasi API sekolah end-to-end (endpoint + token + network + sync live)
 - ✅ export PDF tabel siap pakai + cetak daftar hadir via PDF
 - ✅ auto-refresh live + mode presentasi fullscreen
@@ -57,8 +58,11 @@ Menyelesaikan data dasar yang dibutuhkan untuk semua fitur.
 ### Pekerjaan
 - ✅ data kelas dan default kelas sudah dibuat
 - ✅ CRUD, kelas, dan status hadir siswa sudah ada
+- ✅ ubah kelas via modal + hapus massal kelas
 - ✅ validasi format NIS 4 digit di data siswa
 - ✅ form pengaturan tapel dan tanggal pemilihan di dashboard
+- ✅ tanggal sebagai gerbang voting (hanya hari-H, tanpa jadwal = tutup) + halaman tutup
+- ✅ kolom `tgl` nullable (MySQL strict menolak zero-date; seed + reset diselaraskan)
 - ✅ ganti password admin (verifikasi lama, minimal 4 karakter, konfirmasi)
 - ✅ autentikasi pemilih dan admin sudah berjalan
 - ✅ satu pemilih satu suara dijamin (`UNIQUE tb_pilih.username` + guard double-submit/back/race)

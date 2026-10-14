@@ -15,6 +15,26 @@ class User extends BaseController
         }
     }
 
+    private function statusPemilihan($db): array
+    {
+        try {
+            $row = $db->query("SELECT tgl FROM tb_datapilketos WHERE id = 1 LIMIT 1")->getRowArray();
+            $tgl = trim((string) ($row['tgl'] ?? ''));
+        } catch (\Throwable $e) {
+            $tgl = '';
+        }
+
+        if ($tgl === '' || $tgl === '0000-00-00') {
+            return ['buka' => false, 'tgl' => '', 'alasan' => 'belum'];
+        }
+
+        if ($tgl !== date('Y-m-d')) {
+            return ['buka' => false, 'tgl' => $tgl, 'alasan' => 'tanggal'];
+        }
+
+        return ['buka' => true, 'tgl' => $tgl, 'alasan' => ''];
+    }
+
     public function index()
     {
         if (! session()->get('voter_username')) {
@@ -31,6 +51,15 @@ class User extends BaseController
             if ($alreadyVoted) {
                 return redirect()->to('/user/success')->with('success', 'Anda sudah menggunakan hak pilih. Setiap pemilih hanya tercatat satu suara.');
             }
+        }
+
+        $status = $this->statusPemilihan($db);
+        if (! $status['buka']) {
+            return view('user/closed', [
+                'username' => session()->get('voter_name') ?? session()->get('voter_username'),
+                'tgl' => $status['tgl'],
+                'alasan' => $status['alasan'],
+            ]);
         }
 
         $candidates = [];
@@ -60,6 +89,11 @@ class User extends BaseController
             if ($db->query('SELECT 1 FROM tb_pilih WHERE username = ? LIMIT 1', [$username])->getRowArray()) {
                 return redirect()->to('/user/success')->with('success', 'Anda sudah menggunakan hak pilih. Setiap pemilih hanya tercatat satu suara.');
             }
+        }
+
+        $status = $this->statusPemilihan($db);
+        if (! $status['buka']) {
+            return redirect()->to('/user')->with('error', 'Pemilihan sedang tidak dibuka.');
         }
 
         $nisn = trim((string) $this->request->getPost('nisn'));

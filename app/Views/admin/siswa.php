@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Siswa</title>
+    <link rel="icon" href="<?= esc(!empty($school["favicon"] ?? "") ? "/uploads/sekolah/" . $school["favicon"] : "/logo.png") ?>">
     <link rel="stylesheet" href="/assets/css/admin.css?v=<?= (int) @filemtime(FCPATH . 'assets/css/admin.css') ?>">
     <script src="/assets/js/admin.js?v=<?= (int) @filemtime(FCPATH . 'assets/js/admin.js') ?>" defer></script>
 </head>
@@ -138,7 +139,9 @@
                                                     <form method="post" action="/admin/siswa/delete" class="row-delete">
                                                         <?= csrf_field() ?>
                                                         <input type="hidden" name="username" value="<?= esc($item['username'] ?? '') ?>">
-                                                        <button type="submit" class="btn btn-danger" data-confirm="Apakah Anda yakin ingin menghapus data siswa ini?">Hapus</button>
+                                                        <button type="submit" class="btn btn-danger" data-confirm="Apakah Anda yakin ingin menghapus data siswa ini?" title="Hapus siswa" aria-label="Hapus siswa <?= esc($item['nm_siswa'] ?? '') ?>">
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                        </button>
                                                     </form>
                                                 </td>
                                             </tr>

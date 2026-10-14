@@ -345,7 +345,195 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const searchInput = document.querySelector('[data-candidate-search]');
+    const searchDrop = document.querySelector('[data-search-drop]');
     const candidateCards = Array.from(document.querySelectorAll('[data-candidate-card]'));
+
+    const MENU_CARI = [
+        { label: 'Beranda', href: '/admin', info: 'Dashboard' },
+        { label: 'Kandidat', href: '/admin/calon', info: 'Kelola calon' },
+        { label: 'Pemilih', href: '/admin/siswa', info: 'Data siswa' },
+        { label: 'Kelas', href: '/admin/kelas', info: 'Data kelas' },
+        { label: 'Hasil', href: '/admin/hasilvote', info: 'Hasil voting' },
+        { label: 'Daftar Hadir', href: '/admin/daftarhadir', info: 'Kehadiran' },
+        { label: 'Laporan', href: '/admin/laporan', info: 'Laporan' },
+        { label: 'Identitas', href: '/admin/identitas', info: 'Sekolah' },
+        { label: 'Koneksi API', href: '/admin/connect-api', info: 'API sekolah' },
+        { label: 'Pengaturan', href: '/admin/pengaturan', info: 'Akun' },
+    ];
+
+    let kandidatCache = null;
+
+    const kandidatHalamanIni = function () {
+        return candidateCards.map(function (card) {
+            return {
+                nama: card.getAttribute('data-nama') || '',
+                no: card.getAttribute('data-no') || '',
+            };
+        }).filter(function (item) {
+            return item.nama !== '';
+        });
+    };
+
+    const muatKandidatGlobal = function (lalu) {
+        if (kandidatCache !== null) {
+            lalu(kandidatCache);
+            return;
+        }
+
+        fetch('/admin/hasilvote/data', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (res) {
+                if (!res.ok) {
+                    throw new Error('gagal');
+                }
+                return res.json();
+            })
+            .then(function (data) {
+                kandidatCache = (data && data.ok === true && Array.isArray(data.hasil)) ? data.hasil : [];
+                lalu(kandidatCache);
+            })
+            .catch(function () {
+                kandidatCache = [];
+                lalu(kandidatCache);
+            });
+    };
+
+    const tutupDrop = function () {
+        if (!searchDrop) {
+            return;
+        }
+        searchDrop.hidden = true;
+        if (searchInput) {
+            searchInput.setAttribute('aria-expanded', 'false');
+        }
+    };
+
+    const gambarDrop = function (menu, kandidat) {
+        if (!searchDrop || !searchInput) {
+            return;
+        }
+
+        searchDrop.innerHTML = '';
+
+        if (menu.length === 0 && kandidat.length === 0) {
+            const kosong = document.createElement('p');
+            kosong.className = 'search-empty';
+            kosong.textContent = 'Tidak ada hasil untuk "' + searchInput.value.trim() + '".';
+            searchDrop.appendChild(kosong);
+            searchDrop.hidden = false;
+            searchInput.setAttribute('aria-expanded', 'true');
+            return;
+        }
+
+        const tambahGrup = function (judul, daftar, jenis) {
+            if (daftar.length === 0) {
+                return;
+            }
+
+            const label = document.createElement('span');
+            label.className = 'search-group-label';
+            label.textContent = judul;
+            searchDrop.appendChild(label);
+
+            daftar.forEach(function (item) {
+                const tombol = document.createElement('button');
+                tombol.type = 'button';
+                tombol.className = 'search-item';
+                tombol.setAttribute('role', 'option');
+
+                const nama = document.createElement('span');
+                nama.textContent = item.label;
+                tombol.appendChild(nama);
+
+                const info = document.createElement('small');
+                info.textContent = item.info;
+                tombol.appendChild(info);
+
+                tombol.addEventListener('mousedown', function (event) {
+                    event.preventDefault();
+                    window.location.href = item.href;
+                });
+                tombol.addEventListener('click', function () {
+                    window.location.href = item.href;
+                });
+
+                searchDrop.appendChild(tombol);
+            });
+        };
+
+        tambahGrup('Menu', menu.map(function (item) {
+            return { label: item.label, info: item.info, href: item.href };
+        }));
+        tambahGrup('Kandidat', kandidat.map(function (item) {
+            return { label: item.nama, info: 'No. ' + item.no, href: '/admin/calon' };
+        }));
+
+        searchDrop.hidden = false;
+        searchInput.setAttribute('aria-expanded', 'true');
+    };
+
+    const sorotAktif = function (arah) {
+        if (!searchDrop || searchDrop.hidden) {
+            return;
+        }
+
+        const daftar = Array.from(searchDrop.querySelectorAll('.search-item'));
+        if (daftar.length === 0) {
+            return;
+        }
+
+        let posisi = daftar.findIndex(function (el) {
+            return el.classList.contains('is-active');
+        });
+        posisi = arah === 'atas' ? posisi - 1 : posisi + 1;
+        if (posisi < 0) {
+            posisi = daftar.length - 1;
+        }
+        if (posisi >= daftar.length) {
+            posisi = 0;
+        }
+
+        daftar.forEach(function (el) {
+            el.classList.remove('is-active');
+        });
+        daftar[posisi].classList.add('is-active');
+        daftar[posisi].scrollIntoView({ block: 'nearest' });
+    };
+
+    const cariGlobal = function () {
+        if (!searchInput) {
+            return;
+        }
+
+        const keyword = searchInput.value.toLowerCase().trim();
+        if (keyword === '') {
+            tutupDrop();
+            return;
+        }
+
+        const menuCocok = MENU_CARI.filter(function (item) {
+            return item.label.toLowerCase().includes(keyword);
+        });
+
+        const diHalaman = kandidatHalamanIni();
+        if (diHalaman.length > 0) {
+            gambarDrop(menuCocok, diHalaman.filter(function (item) {
+                return item.nama.toLowerCase().includes(keyword);
+            }));
+            return;
+        }
+
+        muatKandidatGlobal(function (daftar) {
+            if (searchInput.value.toLowerCase().trim() !== keyword) {
+                return;
+            }
+            gambarDrop(menuCocok, daftar.filter(function (item) {
+                return String(item.nama || '').toLowerCase().includes(keyword);
+            }).map(function (item) {
+                return { nama: item.nama, no: item.no };
+            }));
+        });
+    };
+
     if (searchInput && candidateCards.length > 0) {
         const countLabel = document.querySelector('[data-candidate-count]');
         const emptyState = document.querySelector('[data-candidate-empty]');
@@ -370,6 +558,54 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (emptyState) {
                 emptyState.hidden = visible !== 0;
+            }
+
+            cariGlobal();
+        });
+
+        searchInput.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                sorotAktif(event.key === 'ArrowUp' ? 'atas' : 'bawah');
+            } else if (event.key === 'Enter') {
+                const aktif = searchDrop ? searchDrop.querySelector('.search-item.is-active') : null;
+                const pertama = searchDrop ? searchDrop.querySelector('.search-item') : null;
+                if (aktif || pertama) {
+                    event.preventDefault();
+                    (aktif || pertama).click();
+                }
+            } else if (event.key === 'Escape') {
+                tutupDrop();
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            if (searchDrop && !searchDrop.hidden && !event.target.closest('.dash-search-wrap')) {
+                tutupDrop();
+            }
+        });
+    } else if (searchInput) {
+        searchInput.addEventListener('input', cariGlobal);
+
+        searchInput.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                sorotAktif(event.key === 'ArrowUp' ? 'atas' : 'bawah');
+            } else if (event.key === 'Enter') {
+                const aktif = searchDrop ? searchDrop.querySelector('.search-item.is-active') : null;
+                const pertama = searchDrop ? searchDrop.querySelector('.search-item') : null;
+                if (aktif || pertama) {
+                    event.preventDefault();
+                    (aktif || pertama).click();
+                }
+            } else if (event.key === 'Escape') {
+                tutupDrop();
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            if (searchDrop && !searchDrop.hidden && !event.target.closest('.dash-search-wrap')) {
+                tutupDrop();
             }
         });
     }
@@ -483,6 +719,88 @@ document.addEventListener('DOMContentLoaded', function () {
 
         window.setInterval(muatLive, 10000);
     }
+
+    const editModal = document.querySelector('[data-edit-modal]');
+    if (editModal) {
+        const editId = editModal.querySelector('[data-edit-id]');
+        const editNama = editModal.querySelector('[data-edit-nama]');
+
+        const tutupEditModal = function () {
+            editModal.classList.remove('is-open');
+            window.setTimeout(function () {
+                editModal.hidden = true;
+            }, 180);
+        };
+
+        document.querySelectorAll('[data-edit-kelas]').forEach(function (tombol) {
+            tombol.addEventListener('click', function () {
+                if (editId) {
+                    editId.value = tombol.getAttribute('data-id') || '';
+                }
+                if (editNama) {
+                    editNama.value = tombol.getAttribute('data-nama') || '';
+                }
+                editModal.hidden = false;
+                window.requestAnimationFrame(function () {
+                    editModal.classList.add('is-open');
+                });
+                if (editNama) {
+                    editNama.focus();
+                }
+            });
+        });
+
+        const editBatal = editModal.querySelector('[data-edit-batal]');
+        if (editBatal) {
+            editBatal.addEventListener('click', tutupEditModal);
+        }
+
+        editModal.addEventListener('click', function (event) {
+            if (event.target === editModal) {
+                tutupEditModal();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && !editModal.hidden) {
+                tutupEditModal();
+            }
+        });
+    }
+
+    document.querySelectorAll('input[type="file"][data-image-input]').forEach(function (fileInput) {
+        const tipeBoleh = ['image/jpeg', 'image/png', 'image/gif'];
+        const maksUkuran = 1024 * 1024;
+
+        fileInput.addEventListener('change', function () {
+            const field = fileInput.closest('.field');
+            const pesan = field ? field.querySelector('[data-file-error]') : null;
+            const file = fileInput.files && fileInput.files[0];
+
+            if (pesan) {
+                pesan.hidden = true;
+                pesan.textContent = '';
+            }
+            if (!file) {
+                return;
+            }
+
+            let galat = '';
+            if (tipeBoleh.indexOf(file.type) === -1) {
+                galat = 'Format berkas harus JPG, PNG, atau GIF.';
+            } else if (file.size > maksUkuran) {
+                galat = 'Ukuran berkas maksimal 1 MB.';
+            }
+
+            if (galat !== '') {
+                fileInput.value = '';
+                if (pesan) {
+                    pesan.textContent = galat;
+                    pesan.hidden = false;
+                }
+            }
+        });
+    });
 
     document.querySelectorAll('a[data-confirm]').forEach(function (link) {
         link.addEventListener('click', function (event) {

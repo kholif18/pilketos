@@ -53,19 +53,21 @@ final class VoterVotingPageTest extends CIUnitTestCase
         $result->assertRedirect();
     }
 
-    public function testLoggedInVoterCanOpenVotingPage(): void
+    public function testVoterSeesClosedPageWhenNoSchedule(): void
     {
         $result = $this->withSession(['voter_username' => '201'])->get('/user');
 
         $result->assertOK();
-        $result->assertSee('Pilihan Calon');
+        $result->assertSee('Pemilihan Belum Dibuka');
+        $result->assertDontSee('Pilihan Calon');
     }
 
-    public function testAlreadyVotedVoterRedirectedToThankYouPage(): void
+    public function testVoteRejectedWhenElectionClosed(): void
     {
-        $result = $this->withSession(['voter_username' => '201'])->get('/user');
+        $result = $this->withSession(['voter_username' => '201'])->postWithCsrf('/user/vote', [
+            'nisn' => '2024',
+        ]);
 
-        $result->assertOK();
-        $result->assertSee('Pilihan Calon');
+        $result->assertRedirectTo('/user');
     }
 }

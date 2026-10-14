@@ -47,6 +47,15 @@ final class HasilLaporanPageTest extends CIUnitTestCase
         $result->assertSee('Reset User DPT');
     }
 
+    public function testTopbarShowsGlobalSearchDropdown(): void
+    {
+        $result = $this->withSession(['username' => 'admin'])->get('/admin');
+
+        $result->assertOK();
+        $result->assertSee('data-search-drop');
+        $result->assertSee('dash-search-wrap');
+    }
+
     public function testGuestRedirectedToLoginWhenOpeningLaporanPage(): void
     {
         $result = $this->get('/admin/laporan');

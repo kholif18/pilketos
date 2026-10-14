@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin Pilketos</title>
+    <link rel="icon" href="<?= esc(!empty($school["favicon"] ?? "") ? "/uploads/sekolah/" . $school["favicon"] : "/logo.png") ?>">
     <link rel="stylesheet" href="/assets/css/admin.css?v=<?= (int) @filemtime(FCPATH . 'assets/css/admin.css') ?>">
     <script src="/assets/js/admin.js?v=<?= (int) @filemtime(FCPATH . 'assets/js/admin.js') ?>" defer></script>
 </head>
@@ -154,10 +155,19 @@
                                     $kunciCari = mb_strtolower($namaCalon . " " . $nisn . " " . $nomor);
                                     $inisial = strtoupper(implode("", array_map(static fn($kata) => mb_substr($kata, 0, 1), array_slice(preg_split("/\s+/", trim($namaCalon)) ?: [], 0, 2))));
                                     $persenCalon = $jmlSudah > 0 ? round($suara / $jmlSudah * 100, 1) : 0.0;
+                                    $fotoCalon = (string) ($item["photo"] ?? "default.jpg");
+                                    if (! preg_match('/^[A-Za-z0-9._-]+$/', $fotoCalon)) {
+                                        $fotoCalon = "default.jpg";
+                                    }
+                                    $fotoAda = $fotoCalon !== "default.jpg" && is_file(FCPATH . "uploads/calon/" . $fotoCalon);
                                     ?>
-                                    <article class="dash-candidate-card" data-candidate-card data-search="<?= esc($kunciCari) ?>">
+                                    <article class="dash-candidate-card" data-candidate-card data-search="<?= esc($kunciCari) ?>" data-nama="<?= esc($namaCalon) ?>" data-no="<?= esc($nomor) ?>">
                                         <span class="dash-candidate-no" aria-hidden="true"><?= esc($nomor) ?></span>
-                                        <span class="dash-candidate-avatar" aria-hidden="true"><?= esc($inisial !== "" ? $inisial : "-") ?></span>
+                                        <?php if ($fotoAda): ?>
+                                            <img class="dash-candidate-photo" src="/uploads/calon/<?= esc($fotoCalon) ?>" alt="Foto <?= esc($namaCalon) ?>">
+                                        <?php else: ?>
+                                            <span class="dash-candidate-avatar" aria-hidden="true"><?= esc($inisial !== "" ? $inisial : "-") ?></span>
+                                        <?php endif; ?>
                                         <h3><?= esc($namaCalon) ?></h3>
                                         <p class="dash-candidate-meta">Calon Ketua OSIS</p>
                                         <p class="dash-candidate-nis">NIS <?= esc($nisn) ?> • No. <?= esc($nomor) ?></p>

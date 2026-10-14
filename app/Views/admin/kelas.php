@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Kelas</title>
+    <link rel="icon" href="<?= esc(!empty($school["favicon"] ?? "") ? "/uploads/sekolah/" . $school["favicon"] : "/logo.png") ?>">
     <link rel="stylesheet" href="/assets/css/admin.css?v=<?= (int) @filemtime(FCPATH . 'assets/css/admin.css') ?>">
     <script src="/assets/js/admin.js?v=<?= (int) @filemtime(FCPATH . 'assets/js/admin.js') ?>" defer></script>
 </head>
@@ -51,16 +52,17 @@
                         <h2>Daftar Kelas</h2>
                     </div>
                     <div class="panel-body">
-                        <form method="post" action="/admin/kelas/bulk-delete" class="bulk-delete-form" data-confirm="Apakah Anda yakin ingin menghapus kelas yang dipilih?">
-                            <?= csrf_field() ?>
-                            <div class="bulk-delete-toolbar">
-                                <div class="bulk-delete-actions">
-                                    <label class="checkbox-inline">
-                                        <input id="select-all-kelas" type="checkbox" aria-label="Pilih semua kelas">
-                                        <span>Pilih semua</span>
-                                    </label>
-                                    <button type="submit" class="btn btn-danger" data-confirm="Apakah Anda yakin ingin menghapus kelas yang dipilih?">Bulk Delete</button>
-                                </div>
+                        <div class="bulk-delete-toolbar">
+                                <form id="bulk-delete-form" method="post" action="/admin/kelas/bulk-delete" class="bulk-delete-form" data-confirm="Apakah Anda yakin ingin menghapus kelas yang dipilih?">
+                                    <?= csrf_field() ?>
+                                    <div class="bulk-delete-actions">
+                                        <label class="checkbox-inline">
+                                            <input id="select-all-kelas" type="checkbox" aria-label="Pilih semua kelas">
+                                            <span>Pilih semua</span>
+                                        </label>
+                                        <button type="submit" class="btn btn-danger">Bulk Delete</button>
+                                    </div>
+                                </form>
                             </div>
 
                             <div class="table-wrap">
@@ -73,7 +75,7 @@
                                             <th width="80">No</th>
                                             <th>Kode Kelas</th>
                                             <th>Nama Kelas</th>
-                                            <th width="120">Aksi</th>
+                                            <th width="130">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -85,17 +87,24 @@
                                             <?php foreach ($kelas as $index => $item): ?>
                                                 <tr>
                                                     <td>
-                                                        <input type="checkbox" name="kd_kelas[]" value="<?= esc($item['kd_kelas'] ?? 0) ?>" class="row-checkbox" aria-label="Pilih kelas <?= esc($item['nm_kelas'] ?? 'kelas') ?>">
+                                                        <input type="checkbox" form="bulk-delete-form" name="kd_kelas[]" value="<?= esc($item['kd_kelas'] ?? 0) ?>" class="row-checkbox" aria-label="Pilih kelas <?= esc($item['nm_kelas'] ?? 'kelas') ?>">
                                                     </td>
                                                     <td><?= esc($index + 1) ?></td>
                                                     <td><?= esc($item['kd_kelas'] ?? '-') ?></td>
                                                     <td><?= esc($item['nm_kelas'] ?? '-') ?></td>
                                                 <td>
-                                                    <form method="post" action="/admin/kelas/delete" class="row-delete">
-                                                        <?= csrf_field() ?>
-                                                        <input type="hidden" name="kd_kelas" value="<?= esc($item['kd_kelas'] ?? 0) ?>">
-                                                        <button type="submit" class="btn btn-danger" data-confirm="Apakah Anda yakin ingin menghapus kelas ini?">Hapus</button>
-                                                    </form>
+                                                    <div class="row-actions">
+                                                        <button type="button" class="btn btn-secondary" data-edit-kelas data-id="<?= esc($item['kd_kelas'] ?? 0) ?>" data-nama="<?= esc($item['nm_kelas'] ?? '') ?>" title="Ubah kelas" aria-label="Ubah kelas <?= esc($item['nm_kelas'] ?? '') ?>">
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                                        </button>
+                                                        <form method="post" action="/admin/kelas/delete" class="row-delete">
+                                                            <?= csrf_field() ?>
+                                                            <input type="hidden" name="kd_kelas" value="<?= esc($item['kd_kelas'] ?? 0) ?>">
+                                                            <button type="submit" class="btn btn-danger" data-confirm="Apakah Anda yakin ingin menghapus kelas ini?" title="Hapus kelas" aria-label="Hapus kelas <?= esc($item['nm_kelas'] ?? '') ?>">
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                            </button>
+                                                        </form>
+                                                    </div>
                                                 </td>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -103,10 +112,26 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </form>
                     </div>
                 </section>
             </main>
+        </div>
+    </div>
+    <div class="swal-overlay" data-edit-modal hidden>
+        <div class="swal-card" role="dialog" aria-modal="true" aria-labelledby="edit-kelas-title">
+            <h2 id="edit-kelas-title">Ubah Kelas</h2>
+            <form method="post" action="/admin/kelas/update">
+                <?= csrf_field() ?>
+                <input type="hidden" name="kd_kelas" data-edit-id value="">
+                <div class="field">
+                    <label for="edit-nm-kelas">Nama Kelas</label>
+                    <input type="text" id="edit-nm-kelas" name="nm_kelas" data-edit-nama value="" required>
+                </div>
+                <div class="swal-actions">
+                    <button type="button" class="btn btn-outline" data-edit-batal>Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
         </div>
     </div>
     <script>
